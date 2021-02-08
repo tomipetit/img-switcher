@@ -434,7 +434,6 @@ export default class ImgSwicher {
 			let startY = event.changedTouches[0].pageY // Y 座標の位置
 			let totalMoveY = 0
 			let startScrollPos = $(window).scrollTop()
-			console.log("start:"+ startX)
 
 			// 最初のページ、最終ページの移動時の重みを定義
 			let prevWeight = this.getThisPage() == this.config.minPage && !this.config.loop ? 0.3 : 1;
@@ -469,13 +468,14 @@ export default class ImgSwicher {
 					moveObj = { transform: `translateX(${tmpData.movePos}px)` }
 
 					if (tmpData.lock) {
-						e.preventDefault();
+						if(touchEvent.cancelable){
+							touchEvent.preventDefault()
+						}
 						this.config.baseDom.stop().css(moveObj)
 					}
 				})
 				// タッチ終了の処理
 				.one('mouseup touchend', e => {
-					console.log("end:"+ tmpData.moveLen)
 					let mode = null
 					let page
 					this.config.baseDom.stop().css({ 'transition-property': 'all' })
