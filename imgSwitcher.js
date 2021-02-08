@@ -1,7 +1,7 @@
 /**
  * ImgSwitcher
- * Author: Takeshi Tomida (tomipetit@gmail.com)
- * ver. 2.0.1
+ * Author: Takeshi Tomida <tomipetit@gmail.com>
+ * ver. 2.0.2
  * require: jQuery
  */
 export default class ImgSwicher {
@@ -14,6 +14,7 @@ export default class ImgSwicher {
 		this.config.maxPage = Math.ceil(
 			this.config.baseDom.children().length / this.config.perPage
 		) + this.config.maxPageOffset
+		this.config.startPage = this.config.maxPage < this.config.startPage ? 1 : this.config.startPage
 		this.config.page = this.config.startPage
 		this.config.baseDom.attr({
 			'data-page': this.config.startPage
@@ -30,7 +31,6 @@ export default class ImgSwicher {
 			}
 		}
 		this.config.pageSelectorObj = this.config.baseDom.siblings(this.config.pageSelector);
-		this.touchTmpData = {}
 		if (this.config.autoChange && this.config.maxPage != this.config.startPage) {
 			this.setAutoChange();
 		}
@@ -45,7 +45,7 @@ export default class ImgSwicher {
 				let clone = $(_obj).clone(true)
 				this.config.baseDom.prepend(clone.addClass('before'))
 			})
-			this.changePage(this.config.startPage)
+			//this.changePage(this.config.startPage)
 		}
 
 		// リサイズ時の処理
@@ -55,13 +55,10 @@ export default class ImgSwicher {
 			let imgPaths = this.config.baseDom.find('img').get().map(_obj => _obj.getAttribute('src'))
 			this.preload(imgPaths)
 				.then(() => {
-					this.changePage(this.config.startPage)
-
 					switch (this.config.changeMode) {
 						case 'slide':
 							this.config.scrollSize = this.config.baseDom.width()
 							this.config.maxPos = this.config.scrollSize * this.config.maxPage
-							//this.changePage(this.config.startPage)
 							this.config.baseDom.css({
 								transition: this.config.transformStyle,
 							})
@@ -69,6 +66,7 @@ export default class ImgSwicher {
 						case 'fade':
 							break
 					}
+					this.changePage(this.config.startPage, true)
 					this.config.contentLoaded()
 				})
 		}, 400)
@@ -199,7 +197,6 @@ export default class ImgSwicher {
 			}
 			spanObj.on('click', function () {
 				let page = baseObj.children().index(this) + 1
-				console.log(page)
 				that.changePage(page)
 			})
 			baseObj.append(spanObj)
@@ -230,7 +227,8 @@ export default class ImgSwicher {
 	 * 指定ページにジャンプする
 	 * @param {ページナンバー} page 
 	 */
-	changePage(page) {
+	changePage(page, noAction = false) {
+
 		let loop = false
 		if (this.config.maxPage < page) {
 			page = page - this.config.maxPage
@@ -242,7 +240,6 @@ export default class ImgSwicher {
 		}
 		this.changeBeforeFunc(page)
 		this.config.baseDom.children().removeClass('active')
-
 		switch (this.config.changeMode) {
 			case 'slide':
 				let pos = this.getPagePos(page, loop)
@@ -251,6 +248,7 @@ export default class ImgSwicher {
 				}
 				if (loop) {
 					// 移動の終了時にループ状態をリセットする
+
 					this.config.baseDom.off().on("transitionend webkitTransitionEnd oTransitionEnd", e => {
 						let pos = this.getPagePos(page)
 						$(e.currentTarget)
@@ -260,11 +258,19 @@ export default class ImgSwicher {
 							})
 							.off("transitionend webkitTransitionEnd oTransitionEnd")
 					})
+				}else{
+					this.config.baseDom.off()
 				}
-				this.config.baseDom.css({
+
+				let cssValues = {
 					'transition': this.config.transformStyle,
 					'transform': `translateX(${pos}px)`
-				})
+				}
+				if(noAction){
+					cssValues.transition = 'none'
+				}
+
+				this.config.baseDom.css(cssValues)
 
 				this.config.baseDom.children().not('.after').not('.before')
 					.eq(page - 1).addClass('active')
@@ -423,11 +429,12 @@ export default class ImgSwicher {
 			let touchEvent = e;
 			this.config.baseDom.stop().css({ 'transition-property': 'none' })
 			this.config.touchFlg = true
-			let tmpData = this.touchTmpData
-			let startX = this.config.isTouch ? event.changedTouches[0].pageX : e.pageX // X 座標の位置
-			let startY = this.config.isTouch ? event.changedTouches[0].pageY : e.pageY // Y 座標の位置
+			let tmpData = {}
+			let startX = event.changedTouches[0].pageX // X 座標の位置
+			let startY = event.changedTouches[0].pageY // Y 座標の位置
 			let totalMoveY = 0
 			let startScrollPos = $(window).scrollTop()
+			console.log("start:"+ startX)
 
 			// 最初のページ、最終ページの移動時の重みを定義
 			let prevWeight = this.getThisPage() == this.config.minPage && !this.config.loop ? 0.3 : 1;
@@ -441,13 +448,9 @@ export default class ImgSwicher {
 			$(document)
 				.on('mousemove.slider touchmove.slider', e => {
 					let moveObj = {}
-					tmpData.moveX = this.config.isTouch
-						? event.changedTouches[0].pageX
-						: e.pageX // X 座標の位置
+					tmpData.moveX = event.changedTouches[0].pageX // X 座標の位置
 					tmpData.moveLen = tmpData.moveX - startX
-					let moveY = this.config.isTouch
-						? event.changedTouches[0].pageY
-						: e.pageY // X 座標の位置
+					let moveY = event.changedTouches[0].pageY // X 座標の位置
 					let diffY = moveY - startY
 
 					// 縦スクロール時は横移動しないようロックをかける
@@ -456,7 +459,7 @@ export default class ImgSwicher {
 					}
 
 					// 最初のページ、最終ページは移動に重みを加える
-					if (this.touchTmpData.moveLen < 0) {
+					if (tmpData.moveLen < 0) {
 						tmpData.moveLen *= nextWeight;
 					} else {
 						tmpData.moveLen *= prevWeight;
@@ -466,12 +469,13 @@ export default class ImgSwicher {
 					moveObj = { transform: `translateX(${tmpData.movePos}px)` }
 
 					if (tmpData.lock) {
-						touchEvent.preventDefault();
+						e.preventDefault();
 						this.config.baseDom.stop().css(moveObj)
 					}
 				})
 				// タッチ終了の処理
 				.one('mouseup touchend', e => {
+					console.log("end:"+ tmpData.moveLen)
 					let mode = null
 					let page
 					this.config.baseDom.stop().css({ 'transition-property': 'all' })
@@ -479,28 +483,23 @@ export default class ImgSwicher {
 						return false
 					}
 					this.config.touchFlg = false
-					this.touchTmpData.dragEndTime = this.getThisTime()
+					tmpData.dragEndTime = this.getThisTime()
 
 					$(document).off('mousemove.slider touchmove.slider')
 					// スワイプ処理（移動距離とタッチ時間でスワイプ判定）
-					let dragTime = this.touchTmpData.dragEndTime - this.touchTmpData.dragStartTime
-					if (Math.abs(this.touchTmpData.moveLen) < 10) {
-						return
+					let dragTime = tmpData.dragEndTime - tmpData.dragStartTime
+					if (!tmpData.moveLen) {
+						return true
 					}
 					if (
-						dragTime < 300 &&
-						Math.abs(this.touchTmpData.moveLen) > 30
-					) {
-						if (this.touchTmpData.moveLen < 0) {
+						dragTime < 300 && Math.abs(tmpData.moveLen) > 30) {
+						if (tmpData.moveLen < 0) {
 							mode = 'next'
 						} else {
 							mode = 'prev'
 						}
-					} else if (
-						this.config.scrollSize / 2 <
-						Math.abs(this.touchTmpData.moveLen)
-					) {
-						if (this.touchTmpData.moveLen < 0) {
+					} else if (this.config.scrollSize / 2 < Math.abs(tmpData.moveLen)) {
+						if (tmpData.moveLen < 0) {
 							mode = 'next'
 						} else {
 							mode = 'prev'
