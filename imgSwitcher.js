@@ -295,6 +295,10 @@ export default class ImgSwicher {
 			}
 
 		}
+		if(this.config.autoChange){
+			clearInterval(this.config.timerId)
+			this.setAutoChange()
+		}
 		this.changePageCursor(page)
 		this.changePagination(page)
 		this.config.page = page
@@ -469,7 +473,7 @@ export default class ImgSwicher {
 
 					if (tmpData.lock) {
 						if(touchEvent.cancelable){
-							touchEvent.preventDefault()
+							touchEvent.preventDefault();
 						}
 						this.config.baseDom.stop().css(moveObj)
 					}
