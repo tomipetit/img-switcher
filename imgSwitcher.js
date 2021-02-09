@@ -1,7 +1,7 @@
 /**
  * ImgSwitcher
  * Author: Takeshi Tomida <tomipetit@gmail.com>
- * ver. 2.0.2
+ * ver. 2.0.3
  * require: jQuery
  */
 export default class ImgSwicher {
